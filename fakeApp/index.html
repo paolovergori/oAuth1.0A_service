@@ -1,0 +1,100 @@
+<HTML>
+<script type="text/javascript" src="http://code.jquery.com/jquery-1.7.1.js"></script>
+<script type="text/javascript" src="http://crypto-js.googlecode.com/svn/tags/3.0/build/rollups/sha512.js"></script>
+
+<script type="text/javascript">
+
+	var sessionID;	
+	$(document).ready(function(){					
+				var appID = randomString(512);
+				var webinosID = randomString(512);
+				sessionID = CryptoJS.SHA512(appID+webinosID).toString();
+				console.log(sessionID);
+			 }
+	);
+
+	function isAlreadyAuthenticated(){		 
+		$.ajax({
+			url: "https://130.192.86.44:8888/isAlreadyAuthenticated.html",
+			type: 'POST',
+			data: JSON.stringify({"sessionID": sessionID}),
+			dataType: 'json',
+
+			success: function (data) {
+			   if(data){
+			     $('#status').html("LOGGED IN!!!");
+			   }
+			   else{
+
+		    	     $.ajax({
+				url: "https://130.192.86.44:8888/authenticate.html?sessionID="+sessionID,
+				type: 'GET',
+
+				success: function (data) {
+			   	   if(data){
+			     	      window.open(data);
+				      $('#status').html("LOGGED IN!!!");
+				   }
+			   	   else{
+		    	     	      console.log('Error: no URL recived');
+				      $('#status').html("Server error!");
+				   }
+				},
+				error: function (data) {
+			   	   console.log('Authenticate Error: ' + JSON.stringify(data));
+				}
+			     });
+			   }
+			},
+			error: function (data) {
+			   console.log('IsAlreadyAuthenticate Error: ' + JSON.stringify(data));
+			}
+		});
+	  
+	}
+
+	function tweet(){
+
+		 $.ajax({
+			url: "https://130.192.86.44:8888/tweet.html",
+			type: 'POST',
+			data: JSON.stringify({"sessionID": sessionID, "tweet": $('#textarea').val()}),				
+			dataType: 'json',
+
+			success: function (data) {
+			   $('#result').html("SUCCESS!");
+			},
+			error: function (data) {
+			    console.log("Error: " + JSON.stringify(data));
+			}
+		});
+
+	}
+
+	function randomString(length) {
+	    var chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXTZabcdefghiklmnopqrstuvwxyz'.split('');
+	    
+	    if (! length) {
+		length = Math.floor(Math.random() * chars.length);
+	    }
+	    
+	    var str = '';
+	    for (var i = 0; i < length; i++) {
+		str += chars[Math.floor(Math.random() * chars.length)];
+	    }
+;
+	    return str;
+	}
+</script>
+
+<H1>oAuth client</H1>
+<div><br><span id="status"></span></div>
+<TEXTAREA NAME="textArea" id="textarea" COLS=40 ROWS=6></TEXTAREA>
+<P><INPUT TYPE=SUBMIT VALUE="authenticate" onclick="javascript:isAlreadyAuthenticated();">
+<INPUT TYPE=SUBMIT VALUE="tweet" onclick="javascript:tweet();"></P>
+<br><span id="result"></span>
+
+
+
+</HTML>
+
