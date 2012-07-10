@@ -32,7 +32,7 @@ https.createServer(options, function(req, res){
 		    
 		    console.log('<authenticate, GETted> ' + reqFrom);
 		    
-		    //TODO: This crap is needed to overcome missing callbackURL parameter in tweeter.authenticate
+		    //TODO: This is needed to overcome missing callbackURL parameter in tweeter.authenticate
 		    var sessionCallbackURL = tweeter.config.oauthCallback;
 		    tweeter.config.oauthCallback += "?sessionID=" + reqFrom;
 		    console.log('<authenticate> setting callbackTo:' + tweeter.config.oauthCallback);
@@ -41,7 +41,7 @@ https.createServer(options, function(req, res){
 		      
 // 		      console.log(tweeter.getConfig());
 			
-			//TODO: this is shit indeed..!
+			//TODO: this is awful indeed..!
  			tweeter.config.oauthCallback = sessionCallbackURL;		
 			
 			if(err){
@@ -65,10 +65,10 @@ https.createServer(options, function(req, res){
 		    //TODO: close webView. In this example, close spawned child
 		    
 		    var sessionID = url.parse(req.url).query.split('=')[1];
-		    //TODO: just more shit...
+		    //TODO: just more awfulness...
 		    sessionID = sessionID.split('&')[0];
 		    
-		    //TODO: thi is the same crap as above...lack of token and tokenSecret parameter in tweeter.getAccessToken 
+		    //TODO: thi is the same awful thing as above...lack of token and tokenSecret parameter in tweeter.getAccessToken 
 		    tweeter.config.token = sessionKeys[sessionID].reqToken;
 		    tweeter.config.tokenSecret = sessionKeys[sessionID].reqTokenSecret;
 		    	    
