@@ -18,50 +18,63 @@ var options = {
 
 var sessionKeys = {};
  
-console.log("\nServer is listening....\n");
+console.log("\nServer is listening on port 8888....\n");
 
 https.createServer(options, function(req, res){
 		  
     var path = url.parse(req.url).pathname;
     console.log("<req> ", path);
+	
+     //sys.puts(sys.inspect(req));
+	
+console.log(path);
+     
     switch (path){
+	
+        case ('/authenticate'):    
 
-        case ('/authenticate.html'):       	  
-	  
-		    var reqFrom = url.parse(req.url).query.split('=')[1];
-		    
-		    console.log('<authenticate, GETted> ' + reqFrom);
-		    
-		    //TODO: This is needed to overcome missing callbackURL parameter in tweeter.authenticate
-		    var sessionCallbackURL = tweeter.config.oauthCallback;
-		    tweeter.config.oauthCallback += "?sessionID=" + reqFrom;
-		    console.log('<authenticate> setting callbackTo:' + tweeter.config.oauthCallback);
-		      
-		    tweeter.authenticate(function(err, data){
-		      
-// 		      console.log(tweeter.getConfig());
+		 var body = "";
+		req.on('data', function (chunk) {
+			body += chunk;
+		});
+		req.on('end', function () {
+			var reqFrom = JSON.parse(body).sessionID;
+			console.log('<authenticate, POSTted> ' + reqFrom);
 			
-			//TODO: this is awful indeed..!
- 			tweeter.config.oauthCallback = sessionCallbackURL;		
+			//TODO: This is needed to overcome missing callbackURL parameter in tweeter.authenticate
+			var sessionCallbackURL = tweeter.config.oauthCallback;
+			tweeter.config.oauthCallback += "?sessionID=" + reqFrom;
+			console.log('<authenticate> setting callbackTo:' + tweeter.config.oauthCallback);
+	      
+			tweeter.authenticate(function(err, data){
+			      
+				//console.log(tweeter.getConfig());
+				
+				//TODO: this is awful indeed..!
+				tweeter.config.oauthCallback = sessionCallbackURL;		
+				
+				if(err){
+					console.log('<authenticate> Error: ' + err); 
+					return;
+				}
+				
+				console.log('<authenticate, authUrl> %j', data.authUrl || 'ERROR');						
+				
+				sessionKeys[reqFrom] = {reqTokenURL: data.authUrl, access_token: "", access_token_secret: "", reqToken: tweeter.config.token, reqTokenSecret: tweeter.config.tokenSecret};		
+				
+				var jsonurl = JSON.stringify({"authURL": data.authUrl});
+				
+				res.writeHead(200, { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': jsonurl.length, 'Access-Control-Allow-Origin' : '*' });			
+				res.write(jsonurl);
+				//res.write(data.authUrl);	
+				res.end();		
+			});		
+		});
 			
-			if(err){
-			    console.log('<authenticate> Error: ' + err); 
-			    return;
-			}
-			    			    
-                        console.log('<authenticate, authUrl> %j', data.authUrl || 'ERROR');						
-			
-			sessionKeys[reqFrom] = {reqTokenURL: data.authUrl, access_token: "", access_token_secret: "", reqToken: tweeter.config.token, reqTokenSecret: tweeter.config.tokenSecret};		
-			
-			res.writeHead(200, { 'Content-Type': 'text/html', 'Content-Length': data.authUrl.length, 'Access-Control-Allow-Origin' : '*' });			
-			res.write(data.authUrl);				
-			res.end();		
-			
-		    });		
-
+		
             break;
 
-        case ('/accessToken.html'):
+        case ('/accessToken'):
 		    //TODO: close webView. In this example, close spawned child
 		    
 		    var sessionID = url.parse(req.url).query.split('=')[1];
@@ -72,17 +85,19 @@ https.createServer(options, function(req, res){
 		    tweeter.config.token = sessionKeys[sessionID].reqToken;
 		    tweeter.config.tokenSecret = sessionKeys[sessionID].reqTokenSecret;
 		    	    
-		    tweeter.getAccessToken( function(self, err, data){
+		    tweeter.getAccessToken( function( self, err, data){
 
 			 if(err){
-			    console.log('<accessToken> Error!!!'); 
+			    console.log('<accessToken> Error!!!  ' + err); 
 			    return;
 			}
+			
+			//console.log(self);
 			  console.log('<accessToken,twitterKeys> %j\n', self || 'ERROR');
 			  
 			  if(sessionKeys[sessionID] != undefined){
- 			      sessionKeys[sessionID].access_token = self.config.accessToken;
- 			      sessionKeys[sessionID].access_token_secret = self.config.accessTokenSecret;
+ 			      sessionKeys[sessionID].access_token = tweeter.config.accessToken;
+ 			      sessionKeys[sessionID].access_token_secret = tweeter.config.accessTokenSecret;
 			  }
 			  else
 			    console.log("ACCESS_TOKEN: sessionID not found");
@@ -100,7 +115,7 @@ https.createServer(options, function(req, res){
 		    });					    		    
 	    break;
 	    
-	case ('/isAlreadyAuthenticated.html'):	  	  	   
+	case ('/isAlreadyAuthenticated'):	  	  	   
 	  
 	    var body = "";
 	    req.on('data', function (chunk) {
@@ -108,7 +123,7 @@ https.createServer(options, function(req, res){
 	    });
 	    req.on('end', function () {
 	      var reqFrom = JSON.parse(body).sessionID;
-	      console.log('<isAlreadyAuthenticated, POSTed> ' + body);	      	      
+	      console.log('<isAlreadyAuthenticated, GETted> ' + body);	      	      
 	      
 	      //check if the session key sent in the request is already stored in sessionKeys
 	      if(sessionKeys[reqFrom]){
@@ -126,7 +141,7 @@ https.createServer(options, function(req, res){
 	  		     	  
 	    break ;
 	    
-	case ('/tweet.html'):	  
+	case ('/tweet'):	  
 	  
 	    var body = "";
 	    req.on('data', function (chunk) {
@@ -150,13 +165,11 @@ https.createServer(options, function(req, res){
 	    
 	    break;
 	    
-	    
-	    
-	    
         case ('/favicon.ico'):       
 	      res.writeHead(200)
 	      res.end();
             break;
+	    
         default:
             if (/\.(js|html|htm)$/.test(path)){
             	console.log("<sending> "+__dirname+path+" (type: js|html|htm)");
@@ -193,6 +206,17 @@ https.createServer(options, function(req, res){
                    break;
             }
             else if (/\.(jpg|jpeg)$/.test(path)){
+            	console.log("<sending> "+__dirname+path+" (type: jpg)");
+            		
+           		try {
+                   res.writeHead(200, {'Content-Type': 'img/jpg'});
+                   res.write(fs.readFileSync(__dirname + path));
+                   res.end();
+           		} catch(e){ send404(res); }
+                   
+                   break;
+            }
+	    else if (/\.(wsdl|wsd)$/.test(path)){
             	console.log("<sending> "+__dirname+path+" (type: jpg)");
             		
            		try {
