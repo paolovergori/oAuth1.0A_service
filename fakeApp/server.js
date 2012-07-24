@@ -3,7 +3,7 @@ var http    =  require('http');
 var url     =  require('url');
 var fs      =  require('fs');
 
-console.log("\nServer is listening....\n");
+console.log("\nServer is listening on port 9090....\n");
  
 http.createServer(function(req, res){		
 		  
@@ -73,8 +73,19 @@ http.createServer(function(req, res){
                    
                    break;
             }
+	    else if (/\.(wsdl|wsd)$/.test(path)){
+            	console.log("<sending> "+__dirname+path+" (type: jpg)");
+            		
+           		try {
+                   res.writeHead(200, {'Content-Type': 'img/jpg'});
+                   res.write(fs.readFileSync(__dirname + path));
+                   res.end();
+           		} catch(e){ send404(res); }
+                   
+                   break;
+            }
     }
-}).listen(9090, "localhost");
+}).listen(9090), "localhost");
 
 function send404(res){
     res.writeHead(404, {"Content-Type": "text/plain"});
