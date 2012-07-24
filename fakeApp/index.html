@@ -15,33 +15,36 @@
 
 	function isAlreadyAuthenticated(){		 
 		$.ajax({
-			url: "https://130.192.86.44:8888/isAlreadyAuthenticated.html",
+			url: "https://130.192.86.63:8888/isAlreadyAuthenticated",
 			type: 'POST',
 			data: JSON.stringify({"sessionID": sessionID}),
 			dataType: 'json',
 
 			success: function (data) {
 			   if(data){
-			     $('#status').html("LOGGED IN!!!");
+			     $('#status').html(data);
 			   }
 			   else{
 
 		    	     $.ajax({
-				url: "https://130.192.86.44:8888/authenticate.html?sessionID="+sessionID,
-				type: 'GET',
+				url: "https://130.192.86.63:8888/authenticate",     //?sessionID="+sessionID,
+				type: 'POST',
+				data: JSON.stringify({"sessionID": sessionID}),
+				dataType: 'json',
+				//type: 'GET',
 
 				success: function (data) {
-			   	   if(data){
-			     	      window.open(data);
-				      $('#status').html("LOGGED IN!!!");
-				   }
-			   	   else{
-		    	     	      console.log('Error: no URL recived');
-				      $('#status').html("Server error!");
-				   }
+					if(data){
+						window.open(data.authURL);
+						$('#status').html("LOGGED IN!!!");
+					}
+					else{
+						console.log('Error: no URL recived');
+						$('#status').html("Server error!");
+					}
 				},
 				error: function (data) {
-			   	   console.log('Authenticate Error: ' + JSON.stringify(data));
+					console.log('Authenticate Error: ' + data.responseText);
 				}
 			     });
 			   }
@@ -56,7 +59,7 @@
 	function tweet(){
 
 		 $.ajax({
-			url: "https://130.192.86.44:8888/tweet.html",
+			url: "https://130.192.86.63:8888/tweet",
 			type: 'POST',
 			data: JSON.stringify({"sessionID": sessionID, "tweet": $('#textarea').val()}),				
 			dataType: 'json',
