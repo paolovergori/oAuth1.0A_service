@@ -12,8 +12,8 @@ Tweeter.prototype.setConfig = function(config){ this.config = config; };
 var tweeter = new Tweeter(deepCopy(conf));
 
 var options = {
-  key: fs.readFileSync('./key.pem'),
-  cert: fs.readFileSync('./cert.pem')
+  key: fs.readFileSync('./server.key'),
+  cert: fs.readFileSync('./server.crt')
 };
 
 var sessionKeys = {};
@@ -130,34 +130,42 @@ console.log(path);
 	      body += chunk;
 	    });
 	    req.on('end', function () {
-	      var reqFrom = JSON.parse(body).sessionID;
-	      console.log('<isAlreadyAuthenticated, GETted> ' + body);	      	      
-	      
-	      //check if the session key sent in the request is already stored in sessionKeys
-	      if(sessionKeys[reqFrom])
-	      {
-		console.log("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
-		console.log(sessionKeys[reqFrom].access_token);
-	         if(sessionKeys[reqFrom].access_token != "")
-	         {
-		    res.writeHead(200, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });
-		    res.write("true");
-		    console.log('<isAlreadyAuthenticated, replyed> true');
-	         }
-	         else
-	         {
-		    res.writeHead(200, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });
-		    res.write("false");
-		    console.log('<isAlreadyAuthenticated, replyed> false');
-		 }
-	      }
-	      else{
-		res.writeHead(200, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });
-		res.write("false");
-		console.log('<isAlreadyAuthenticated, replyed> false');
-	      }
-	      res.end();
+		if(body != ""){
+		      var reqFrom = JSON.parse(body).sessionID;
+		      console.log('<isAlreadyAuthenticated, GETted> ' + body);	      	      
+		      
+		      //check if the session key sent in the request is already stored in sessionKeys
+		      if(sessionKeys[reqFrom])
+		      {
+			console.log("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
+			console.log(sessionKeys[reqFrom].access_token);
+			 if(sessionKeys[reqFrom].access_token != "")
+			 {
+			    res.writeHead(200, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });
+			    res.write("true");
+			    console.log('<isAlreadyAuthenticated, replyed> true');
+			 }
+			 else
+			 {
+			    res.writeHead(200, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });
+			    res.write("false");
+			    console.log('<isAlreadyAuthenticated, replyed> false');
+			 }
+		      }
+		      else{
+			res.writeHead(200, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });
+			res.write("false");
+			console.log('<isAlreadyAuthenticated, replyed> false');
+		      }
+		      res.end();
+		}
+		else{
+			res.writeHead(200, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });
+			res.end();
+			console.log('<isAlreadyAuthenticated, replyed> empty body');
+		}
 	    });
+
 	  		     	  
 	    break ;
 	    
