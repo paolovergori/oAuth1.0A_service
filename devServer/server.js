@@ -12,8 +12,8 @@ Tweeter.prototype.setConfig = function(config){ this.config = config; };
 var tweeter = new Tweeter(deepCopy(conf));
 
 var options = {
-  key: fs.readFileSync('./key.pem'),
-  cert: fs.readFileSync('./cert.pem')
+  key: fs.readFileSync('./server.key'),
+  cert: fs.readFileSync('./server.crt')
 };
 
 var sessionKeys = {};
@@ -92,12 +92,20 @@ console.log(path);
 			    return;
 			}
 			
-			//console.log(self);
+			console.log(tweeter.config.accessToken);
+
 			  console.log('<accessToken,twitterKeys> %j\n', self || 'ERROR');
 			  
 			  if(sessionKeys[sessionID] != undefined){
- 			      sessionKeys[sessionID].access_token = tweeter.config.accessToken;
- 			      sessionKeys[sessionID].access_token_secret = tweeter.config.accessTokenSecret;
+			      if(tweeter.config.accessToken != undefined)
+				{
+ 				      sessionKeys[sessionID].access_token = tweeter.config.accessToken;
+ 				      sessionKeys[sessionID].access_token_secret = tweeter.config.accessTokenSecret;
+				}
+			      else
+				{
+					delete sessionKeys[sessionID];
+				}
 			  }
 			  else
 			    console.log("ACCESS_TOKEN: sessionID not found");
@@ -122,22 +130,42 @@ console.log(path);
 	      body += chunk;
 	    });
 	    req.on('end', function () {
-	      var reqFrom = JSON.parse(body).sessionID;
-	      console.log('<isAlreadyAuthenticated, GETted> ' + body);	      	      
-	      
-	      //check if the session key sent in the request is already stored in sessionKeys
-	      if(sessionKeys[reqFrom]){
-		res.writeHead(200, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });
-		res.write("true");
-		console.log('<isAlreadyAuthenticated, replyed> true');
-	      }
-	      else{
-		res.writeHead(200, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });
-		res.write("false");
-		console.log('<isAlreadyAuthenticated, replyed> false');
-	      }
-	      res.end();
+		if(body != ""){
+		      var reqFrom = JSON.parse(body).sessionID;
+		      console.log('<isAlreadyAuthenticated, GETted> ' + body);	      	      
+		      
+		      //check if the session key sent in the request is already stored in sessionKeys
+		      if(sessionKeys[reqFrom])
+		      {
+			console.log("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
+			console.log(sessionKeys[reqFrom].access_token);
+			 if(sessionKeys[reqFrom].access_token != "")
+			 {
+			    res.writeHead(200, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });
+			    res.write("true");
+			    console.log('<isAlreadyAuthenticated, replyed> true');
+			 }
+			 else
+			 {
+			    res.writeHead(200, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });
+			    res.write("false");
+			    console.log('<isAlreadyAuthenticated, replyed> false');
+			 }
+		      }
+		      else{
+			res.writeHead(200, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });
+			res.write("false");
+			console.log('<isAlreadyAuthenticated, replyed> false');
+		      }
+		      res.end();
+		}
+		else{
+			res.writeHead(200, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });
+			res.end();
+			console.log('<isAlreadyAuthenticated, replyed> empty body');
+		}
 	    });
+
 	  		     	  
 	    break ;
 	    
@@ -164,7 +192,125 @@ console.log(path);
 	    });
 	    
 	    break;
+
+	case ('/getFriends'):	  	 
+	      console.log('<getFriends, requested:> ');
+	          
+	      var sessionID = url.parse(req.url).query.split('=')[1];
+	      sessionID = sessionID.split('&')[0];
+
+	      if(sessionKeys[sessionID] !== undefined){
+
+		console.log("oAuth getFriends was invoked");	
+	
+		var requestUrl = "https://api.twitter.com/1/friends/ids.json";
+		var requestTokenUrl = "https://api.twitter.com/oauth/request_token";
+		var access_token = sessionKeys[sessionID].access_token;
+		var access_token_secret = sessionKeys[sessionID].access_token_secret;
+		console.log(requestUrl);
+
+		var service = new OAuth(requestTokenUrl,
+                 		requestTokenUrl, 
+                 		tweeter.config.consumerKey, tweeter.config.consumerSecret, 
+                 		"1.0A", "", "HMAC-SHA1");
+
+		service.get(requestUrl, access_token, access_token_secret, function(error, data) {
+			if (error) {
+				console.log('ERROR:' + sys.inspect(error));
+				res.writeHead(200, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });;
+				res.write(false);
+				res.end();
+			}
+			else {
+				//getusersinfo
+
+				var baseRequest = "http://api.twitter.com/1/users/lookup.json?user_id=";
+				//split the request into batches of 100 persons
+				var buffer = "[]";
+				console.log (data);
+				var ids = JSON.parse(data).ids;
+				var sem = 0;
+				while (ids.length>0){
+					sem++;
+
+					var currentids;
+					if (ids.length>100){
+						currentids = ids.splice(0,100);
+					} else {
+						currentids = ids.splice(0,ids.length);
+					}
+					var request = baseRequest + currentids.join(",");
+
+					service.get(request, access_token, access_token_secret, function(error, users) {
+						buffer = buffer.substring(0, buffer.length-1).concat(buffer.length!=2?",":"").concat(users.substring(1, users.length));					sem--;
+						if (sem == 0) {
+							res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin' : '*' });;
+							res.write(buffer);
+							res.end();
+						}	
+					});
+				}
+			}
+		});
+
+
+	      }
+	      else{
+		res.writeHead(403, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });;
+		res.end();
+	      }
+	      	   	    
+	    break;
 	    
+case ('/getTimeline'):	  	 
+	      console.log('<getTimeline, requested:> ');
+	          
+	      var sessionID = url.parse(req.url).query.split('=')[1];
+	      sessionID = sessionID.split('&')[0];
+
+	      if(sessionKeys[sessionID] !== undefined){
+
+		console.log("oAuth getFriends was invoked");	
+	
+		var requestUrl = "https://api.twitter.com/1/statuses/friends_timeline.json?include_entities=true&count=100";
+		var requestTokenUrl = "https://api.twitter.com/oauth/request_token";
+		var access_token = sessionKeys[sessionID].access_token;
+		var access_token_secret = sessionKeys[sessionID].access_token_secret;
+		console.log(requestUrl);
+
+		var service = new OAuth(requestTokenUrl,
+                 		requestTokenUrl, 
+                 		tweeter.config.consumerKey, tweeter.config.consumerSecret, 
+                 		"1.0A", "", "HMAC-SHA1");
+
+		service.get(requestUrl, access_token, access_token_secret, function(error, data) {
+			if (error) {
+				console.log('ERROR:' + sys.inspect(error));
+				res.writeHead(200, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });;
+				res.write("false");
+				res.end();
+			}
+			else {
+				//getusersinfo
+
+				console.log(data);
+				res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin' : '*' });;
+				res.write(data);
+				res.end()
+
+				
+			
+			}
+		});
+
+
+	      }
+	      else{
+		res.writeHead(403, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });;
+		res.end();
+	      }
+	      	   	    
+	    break;
         case ('/favicon.ico'):       
 	      res.writeHead(200)
 	      res.end();
@@ -259,6 +405,28 @@ function postTweet(consumerKeys, accessTokens, text){
 		else console.log(data);
 	});
 }
+
+
+function getFriends(consumerKeys, accessTokens){
+	console.log("oAuth getFriends was invoked");	
+	
+	var requestUrl = "https://api.twitter.com/1/friends/ids.json";
+	var requestTokenUrl = "https://api.twitter.com/oauth/request_token";
+	var access_token = accessTokens.access_token;
+	var access_token_secret = accessTokens.access_token_secret;
+	console.log(requestUrl);
+
+	var service = new OAuth(requestTokenUrl,
+                 		requestTokenUrl, 
+                 		consumerKeys.consumerKey, consumerKeys.consumerSecret, 
+                 		"1.0A", "", "HMAC-SHA1");
+
+	service.get(requestUrl, access_token, access_token_secret, function(error, data) {
+		if (error) console.log('ERROR:' + sys.inspect(error));
+		else return data;
+	});
+}
+
 
 
 function deepCopy(p,c) {
