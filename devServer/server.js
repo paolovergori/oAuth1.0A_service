@@ -1,5 +1,5 @@
 var sys     =  require('util');
-var https    =  require('https');
+var http    =  require('http');
 var url     =  require('url');
 var fs      =  require('fs');
 var child   =  require('child_process')
@@ -11,17 +11,18 @@ Tweeter.prototype.setConfig = function(config){ this.config = config; };
 
 var tweeter = new Tweeter(deepCopy(conf));
 
-var options = {
-  key: fs.readFileSync('./server.key'),
-  cert: fs.readFileSync('./server.crt')
-};
+//var options = {
+//  key: fs.readFileSync('./server.key'),
+//  cert: fs.readFileSync('./server.crt')
+//};
 
 var sessionKeys = {};
  
 console.log("\nServer is listening on port 8888....\n");
 
-https.createServer(options, function(req, res){
+//https.createServer(options, function(req, res){
 		  
+http.createServer( function(req, res){
     var path = url.parse(req.url).pathname;
     console.log("<req> ", path);
 	
@@ -75,9 +76,18 @@ console.log(path);
             break;
 
         case ('/accessToken'):
-		    //TODO: close webView. In this example, close spawned child
-		    
+
+		if(url === undefined){
+		  sed404();
+		  break;
+		}
+		    //TODO: close webView. In this example, close spawned child		    
 		    var sessionID = url.parse(req.url).query.split('=')[1];
+
+		if(sessionID === undefined){
+		  send404();
+  		  break;
+		}
 		    //TODO: just more awfulness...
 		    sessionID = sessionID.split('&')[0];
 		    
@@ -180,12 +190,12 @@ console.log(path);
 
 	      var tweet = JSON.parse(body);	      
 	      if(sessionKeys[tweet.sessionID] !== undefined){
-		res.writeHead(200, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });;
+		res.writeHead(200, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });
 		res.end();
 		postTweet(tweeter.config, sessionKeys[tweet.sessionID], tweet.tweet);
 	      }
 	      else{
-		res.writeHead(403, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });;
+		res.writeHead(403, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });
 		res.end();
 	      }
 	      
@@ -217,7 +227,7 @@ console.log(path);
 		service.get(requestUrl, access_token, access_token_secret, function(error, data) {
 			if (error) {
 				console.log('ERROR:' + sys.inspect(error));
-				res.writeHead(200, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });;
+				res.writeHead(200, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });
 				res.write(false);
 				res.end();
 			}
@@ -244,7 +254,7 @@ console.log(path);
 					service.get(request, access_token, access_token_secret, function(error, users) {
 						buffer = buffer.substring(0, buffer.length-1).concat(buffer.length!=2?",":"").concat(users.substring(1, users.length));					sem--;
 						if (sem == 0) {
-							res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin' : '*' });;
+							res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin' : '*' });
 							res.write(buffer);
 							res.end();
 						}	
@@ -256,7 +266,7 @@ console.log(path);
 
 	      }
 	      else{
-		res.writeHead(403, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });;
+		res.writeHead(403, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });
 		res.end();
 	      }
 	      	   	    
@@ -286,7 +296,7 @@ case ('/getTimeline'):
 		service.get(requestUrl, access_token, access_token_secret, function(error, data) {
 			if (error) {
 				console.log('ERROR:' + sys.inspect(error));
-				res.writeHead(200, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });;
+				res.writeHead(200, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });
 				res.write("false");
 				res.end();
 			}
@@ -294,7 +304,7 @@ case ('/getTimeline'):
 				//getusersinfo
 
 				console.log(data);
-				res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin' : '*' });;
+				res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin' : '*' });
 				res.write(data);
 				res.end()
 
@@ -306,11 +316,37 @@ case ('/getTimeline'):
 
 	      }
 	      else{
-		res.writeHead(403, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });;
+		res.writeHead(403, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });
 		res.end();
 	      }
 	      	   	    
 	    break;
+	case ('/logout'):	  	  
+	    var body = "";
+	    req.on('data', function (chunk) {
+	      body += chunk;
+	    });
+	    req.on('end', function () {
+		if(body!=""){
+		      var tweet = JSON.parse(body);	      
+		      if(sessionKeys[tweet.sessionID] !== undefined){
+			delete sessionKeys[tweet.sessionID];
+			console.log("--logout: "+tweet.sessionID);
+			res.writeHead(200, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });
+			res.end();
+		      }
+		      else{
+			res.writeHead(403, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });
+			res.end();
+		      }
+		}
+		else{
+			res.writeHead(404, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });
+			res.end();
+			console.log('<logout, replyed> empty body');
+		}	      
+	    });
+	   break; 
         case ('/favicon.ico'):       
 	      res.writeHead(200)
 	      res.end();
@@ -375,6 +411,8 @@ case ('/getTimeline'):
             }
     }
 }).listen(8888);
+
+
 
 function send404(res){
     res.writeHead(404, {"Content-Type": "text/plain"});
