@@ -10,6 +10,7 @@ var Tweeter =  require('tweeter');
 Tweeter.prototype.setConfig = function(config){ this.config = config; };
 
 var tweeter = new Tweeter(deepCopy(conf));
+var sessionCallbackURL = tweeter.config.oauthCallback;
 
 //var options = {
 //  key: fs.readFileSync('./server.key'),
@@ -43,16 +44,13 @@ console.log(path);
 			console.log('<authenticate, POSTted> ' + reqFrom);
 			
 			//TODO: This is needed to overcome missing callbackURL parameter in tweeter.authenticate
-			var sessionCallbackURL = tweeter.config.oauthCallback;
-			tweeter.config.oauthCallback += "?sessionID=" + reqFrom;
-			console.log('<authenticate> setting callbackTo:' + tweeter.config.oauthCallback);
-	      
-			tweeter.authenticate(function(err, data){
-			      
-				//console.log(tweeter.getConfig());
+
+			//cloning the object to avoid two simultaneous requests to be responded with two sessionIDs concatenated. (not fast enough to work on one obj only!)
+			var tweeterTMP = new Tweeter(deepCopy(conf));
 				
-				//TODO: this is awful indeed..!
-				tweeter.config.oauthCallback = sessionCallbackURL;		
+			tweeterTMP.config.oauthCallback += "?sessionID=" + reqFrom;
+			console.log('<authenticate> setting callbackTo:' + tweeterTMP.config.oauthCallback);
+			tweeterTMP.authenticate(function(err, data){		
 				
 				if(err){
 					console.log('<authenticate> Error: ' + err); 
@@ -61,15 +59,16 @@ console.log(path);
 				
 				console.log('<authenticate, authUrl> %j', data.authUrl || 'ERROR');						
 				
-				sessionKeys[reqFrom] = {reqTokenURL: data.authUrl, access_token: "", access_token_secret: "", reqToken: tweeter.config.token, reqTokenSecret: tweeter.config.tokenSecret};		
+				sessionKeys[reqFrom] = {reqTokenURL: data.authUrl, access_token: "", access_token_secret: "", reqToken: tweeterTMP.config.token, reqTokenSecret: tweeterTMP.config.tokenSecret};		
 				
+				tweeterTMP = null;	
 				var jsonurl = JSON.stringify({"authURL": data.authUrl});
 				
 				res.writeHead(200, { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': jsonurl.length, 'Access-Control-Allow-Origin' : '*' });			
 				res.write(jsonurl);
 				//res.write(data.authUrl);	
-				res.end();		
-			});		
+				res.end();						
+			});	
 		});
 			
 		
@@ -78,20 +77,27 @@ console.log(path);
         case ('/accessToken'):
 
 		if(url === undefined){
-		  sed404();
+		  sed404(res);
 		  break;
 		}
 		    //TODO: close webView. In this example, close spawned child		    
 		    var sessionID = url.parse(req.url).query.split('=')[1];
 
-		if(sessionID === undefined){
-		  send404();
+		if(sessionID == undefined){
+		  send404(res);
   		  break;
 		}
+
 		    //TODO: just more awfulness...
 		    sessionID = sessionID.split('&')[0];
-		    
-		    //TODO: thi is the same awful thing as above...lack of token and tokenSecret parameter in tweeter.getAccessToken 
+
+		if(!(sessionKeys[sessionID])){
+		  console.log('ERROR: sessionKeys[sessionID] is undefined!');
+		  send404(res);
+  		  break;
+		}
+	    
+		    //TODO: this is the same awful thing as above...lack of token and tokenSecret parameter in tweeter.getAccessToken 
 		    tweeter.config.token = sessionKeys[sessionID].reqToken;
 		    tweeter.config.tokenSecret = sessionKeys[sessionID].reqTokenSecret;
 		    	    
@@ -145,9 +151,8 @@ console.log(path);
 		      console.log('<isAlreadyAuthenticated, GETted> ' + body);	      	      
 		      
 		      //check if the session key sent in the request is already stored in sessionKeys
-		      if(sessionKeys[reqFrom])
+		      if((sessionKeys[reqFrom]))
 		      {
-			console.log("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
 			console.log(sessionKeys[reqFrom].access_token);
 			 if(sessionKeys[reqFrom].access_token != "")
 			 {
