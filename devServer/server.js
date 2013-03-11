@@ -40,7 +40,8 @@ console.log(path);
 			body += chunk;
 		});
 		req.on('end', function () {
-			var reqFrom = JSON.parse(body).sessionID;
+			//This is required by pzp friendly name
+			var reqFrom =JSON.parse(body).sessionID.replace(/\s/g,'_');
 			console.log('<authenticate, POSTted> ' + reqFrom);
 			
 			//TODO: This is needed to overcome missing callbackURL parameter in tweeter.authenticate
@@ -80,11 +81,18 @@ console.log(path);
 		  sed404(res);
 		  break;
 		}
-		    //TODO: close webView. In this example, close spawned child		    
-		    var sessionID = url.parse(req.url).query.split('=')[1];
+
+		console.log("\n\n\n");
+		console.log(req.url);
+		console.log("\n\n\n");
+
+		//TODO: close webView. In this example, close spawned child		    
+		var sessionID = url.parse(req.url).query.split('=')[1];
+		console.log(sessionID);
 
 		if(sessionID == undefined){
 		  send404(res);
+		  console.log("sessionID is undefined");
   		  break;
 		}
 
@@ -98,6 +106,7 @@ console.log(path);
 		}
 	    
 		    //TODO: this is the same awful thing as above...lack of token and tokenSecret parameter in tweeter.getAccessToken 
+		   // var tweeterTMP = new Tweeter(deepCopy(conf));
 		    tweeter.config.token = sessionKeys[sessionID].reqToken;
 		    tweeter.config.tokenSecret = sessionKeys[sessionID].reqTokenSecret;
 		    	    
@@ -147,7 +156,7 @@ console.log(path);
 	    });
 	    req.on('end', function () {
 		if(body != ""){
-		      var reqFrom = JSON.parse(body).sessionID;
+		      var reqFrom = JSON.parse(body).sessionID.replace(/\s/g,'_');
 		      console.log('<isAlreadyAuthenticated, GETted> ' + body);	      	      
 		      
 		      //check if the session key sent in the request is already stored in sessionKeys
@@ -194,10 +203,10 @@ console.log(path);
 	      console.log('<tweet, POSTed:> ' + body);
 
 	      var tweet = JSON.parse(body);	      
-	      if(sessionKeys[tweet.sessionID] !== undefined){
+	      if(sessionKeys[tweet.sessionID.replace(/\s/g,'_')] !== undefined){
 		res.writeHead(200, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });
 		res.end();
-		postTweet(tweeter.config, sessionKeys[tweet.sessionID], tweet.tweet);
+		postTweet(tweeter.config, sessionKeys[tweet.sessionID.replace(/\s/g,'_')], tweet.tweet);
 	      }
 	      else{
 		res.writeHead(403, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });
@@ -213,6 +222,7 @@ console.log(path);
 	          
 	      var sessionID = url.parse(req.url).query.split('=')[1];
 	      sessionID = sessionID.split('&')[0];
+	      sessionID = sessionID.replace(/\s/g,'_');
 
 	      if(sessionKeys[sessionID] !== undefined){
 
@@ -282,6 +292,7 @@ case ('/getTimeline'):
 	          
 	      var sessionID = url.parse(req.url).query.split('=')[1];
 	      sessionID = sessionID.split('&')[0];
+	      sessionID = sessionID.replace(/\%20/g,'_');
 
 	      if(sessionKeys[sessionID] !== undefined){
 
@@ -333,7 +344,8 @@ case ('/getTimeline'):
 	    });
 	    req.on('end', function () {
 		if(body!=""){
-		      var tweet = JSON.parse(body);	      
+		      var tweet = JSON.parse(body);
+		      tweet.sessionID = tweet.sessionID.replace(/\s/g,'_');	      
 		      if(sessionKeys[tweet.sessionID] !== undefined){
 			delete sessionKeys[tweet.sessionID];
 			console.log("--logout: "+tweet.sessionID);
