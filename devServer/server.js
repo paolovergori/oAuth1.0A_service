@@ -41,7 +41,7 @@ console.log(path);
 		});
 		req.on('end', function () {
 			//This is required by pzp friendly name
-			var reqFrom =JSON.parse(body).sessionID.replace(/\s/g,'_');
+			var reqFrom = cleanSessionID(JSON.parse(body).sessionID);
 			console.log('<authenticate, POSTted> ' + reqFrom);
 			
 			//TODO: This is needed to overcome missing callbackURL parameter in tweeter.authenticate
@@ -68,7 +68,9 @@ console.log(path);
 				res.writeHead(200, { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': jsonurl.length, 'Access-Control-Allow-Origin' : '*' });			
 				res.write(jsonurl);
 				//res.write(data.authUrl);	
-				res.end();						
+				res.end();	
+				
+				delete tweeterTMP;					
 			});	
 		});
 			
@@ -106,45 +108,46 @@ console.log(path);
 		}
 	    
 		    //TODO: this is the same awful thing as above...lack of token and tokenSecret parameter in tweeter.getAccessToken 
-		   // var tweeterTMP = new Tweeter(deepCopy(conf));
-		    tweeter.config.token = sessionKeys[sessionID].reqToken;
-		    tweeter.config.tokenSecret = sessionKeys[sessionID].reqTokenSecret;
+		    var tweeterTMP = new Tweeter(deepCopy(conf));
+		    tweeterTMP.config.token = sessionKeys[sessionID].reqToken;
+		    tweeterTMP.config.tokenSecret = sessionKeys[sessionID].reqTokenSecret;
 		    	    
-		    tweeter.getAccessToken( function( self, err, data){
+		    tweeterTMP.getAccessToken( function( self, err, data){
 
 			 if(err){
 			    console.log('<accessToken> Error!!!  ' + err); 
 			    return;
 			}
 			
-			console.log(tweeter.config.accessToken);
+			console.log(tweeterTMP.config.accessToken);
 
-			  console.log('<accessToken,twitterKeys> %j\n', self || 'ERROR');
+			console.log('<accessToken,twitterKeys> %j\n', self || 'ERROR');
 			  
-			  if(sessionKeys[sessionID] != undefined){
-			      if(tweeter.config.accessToken != undefined)
-				{
- 				      sessionKeys[sessionID].access_token = tweeter.config.accessToken;
- 				      sessionKeys[sessionID].access_token_secret = tweeter.config.accessTokenSecret;
-				}
-			      else
-				{
-					delete sessionKeys[sessionID];
-				}
-			  }
-			  else
-			    console.log("ACCESS_TOKEN: sessionID not found");
+			if(sessionKeys[sessionID] != undefined){
+			   if(tweeterTMP.config.accessToken != undefined)
+			   {
+ 			      sessionKeys[sessionID].access_token = tweeterTMP.config.accessToken;
+ 			      sessionKeys[sessionID].access_token_secret = tweeterTMP.config.accessTokenSecret;
+			   }
+			   else
+			   {
+			      delete sessionKeys[sessionID];
+			   }
+			}
+			else
+			   console.log("ACCESS_TOKEN: sessionID not found");
 
-			  var redirect = "<HTML>"
-			  redirect+="<SCRIPT LANGUAGE='JavaScript'>";
-			  redirect+="window.open('','_self',''); window.close();";
-			  redirect+="</SCRIPT></HTML>";
+			var redirect = "<HTML>"
+			redirect+="<SCRIPT LANGUAGE='JavaScript'>";
+			redirect+="window.open('','_self',''); window.close();";
+			redirect+="</SCRIPT></HTML>";
+			
+			res.writeHead(200, {'Content-Type': 'text/html','Content-Length':redirect.length});			
+			res.write(redirect);	
+			res.end();			  
 			  
-			  res.writeHead(200, {'Content-Type': 'text/html','Content-Length':redirect.length});			
-			  res.write(redirect);				
-			  res.end();			  
-			  
-			  tweeter.setConfig(deepCopy(conf));
+			tweeter.setConfig(deepCopy(conf));
+			delete tweeterTMP;  
 		    });					    		    
 	    break;
 	    
@@ -156,8 +159,8 @@ console.log(path);
 	    });
 	    req.on('end', function () {
 		if(body != ""){
-		      var reqFrom = JSON.parse(body).sessionID.replace(/\s/g,'_');
-		      console.log('<isAlreadyAuthenticated, GETted> ' + body);	      	      
+		      var reqFrom = cleanSessionID(JSON.parse(body).sessionID);
+		      console.log('<isAlreadyAuthenticated, GETted> ' + reqFrom);	      	      
 		      
 		      //check if the session key sent in the request is already stored in sessionKeys
 		      if((sessionKeys[reqFrom]))
@@ -202,11 +205,13 @@ console.log(path);
 	    req.on('end', function () {
 	      console.log('<tweet, POSTed:> ' + body);
 
-	      var tweet = JSON.parse(body);	      
-	      if(sessionKeys[tweet.sessionID.replace(/\s/g,'_')] !== undefined){
+	      var tweet = JSON.parse(body);
+	      tweet.sessioID = cleanSessionID(tweet.sessionID);
+
+	      if(sessionKeys[tweet.sessionID] !== undefined){
 		res.writeHead(200, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });
 		res.end();
-		postTweet(tweeter.config, sessionKeys[tweet.sessionID.replace(/\s/g,'_')], tweet.tweet);
+		postTweet(tweeter.config, sessionKeys[tweet.sessionID], tweet.tweet);
 	      }
 	      else{
 		res.writeHead(403, { 'Content-Type': 'text/javascript', 'Access-Control-Allow-Origin' : '*' });
@@ -222,7 +227,7 @@ console.log(path);
 	          
 	      var sessionID = url.parse(req.url).query.split('=')[1];
 	      sessionID = sessionID.split('&')[0];
-	      sessionID = sessionID.replace(/\s/g,'_');
+	      sessionID = cleanSessionID(sessionID);
 
 	      if(sessionKeys[sessionID] !== undefined){
 
@@ -292,7 +297,7 @@ case ('/getTimeline'):
 	          
 	      var sessionID = url.parse(req.url).query.split('=')[1];
 	      sessionID = sessionID.split('&')[0];
-	      sessionID = sessionID.replace(/\%20/g,'_');
+	      sessionID = cleanSessionID(sessionID);
 
 	      if(sessionKeys[sessionID] !== undefined){
 
@@ -345,7 +350,7 @@ case ('/getTimeline'):
 	    req.on('end', function () {
 		if(body!=""){
 		      var tweet = JSON.parse(body);
-		      tweet.sessionID = tweet.sessionID.replace(/\s/g,'_');	      
+		      tweet.sessionID = cleanSessionID(tweet.sessionID);	      
 		      if(sessionKeys[tweet.sessionID] !== undefined){
 			delete sessionKeys[tweet.sessionID];
 			console.log("--logout: "+tweet.sessionID);
@@ -480,6 +485,17 @@ function getFriends(consumerKeys, accessTokens){
 		if (error) console.log('ERROR:' + sys.inspect(error));
 		else return data;
 	});
+}
+
+
+function cleanSessionID(id){
+
+	id = id.replace(/\s/g,'_');
+	id = id.replace(/\%20/g,'_');
+	id = id.replace(/\'/g,'');
+	id = id.replace(/\(/g,'');
+	id = id.replace(/\)/g,'');
+	return id;
 }
 
 
