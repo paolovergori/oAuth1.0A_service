@@ -10,10 +10,8 @@ PRE-INSTALLATION STEPS:
 
 - Configure config.js adding Twitter application developer consumer key and consumer secret. A devServer callback address to main page is also needed (e.g. https://<yourRoutableIPaddr:unfirewalledPort>//accessToken.html).
 
-- Install node dependencies: oauth, tweeter, util, https, url, fs, child_process.
+To install required node dependencies run: 
+    - npm install oauth util https url fs child_process forever
+    - npm install git+https://github.com/paolovergori/tweeter.js.git
 
-HOWTO RUN IT:
-
-- node devServer/server.js
-- node fakeApp/server.js
-- open location to fakeApp: http://localhost:9090/index.html
+HOWTO RUN IT: forever server.js
