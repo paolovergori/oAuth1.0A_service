@@ -88,9 +88,15 @@ console.log(path);
 		console.log(req.url);
 		console.log("\n\n\n");
 
-		//TODO: close webView. In this example, close spawned child		    
-		var sessionID = url.parse(req.url).query.split('=')[1];
-		console.log(sessionID);
+		//TODO: close webView. In this example, close spawned child
+		var tmpArray = 	url.parse(req.url).query.split('&');    
+		var sessionID = tmpArray[0];
+		var oauthAllIn={};
+		var tmp = tmpArray[1].split('=');
+		oauthAllIn[tmp[0]]=tmp[1];
+		tmp = tmpArray[2].split('=');
+		oauthAllIn[tmp[0]]=tmp[1];
+		console.log(oauthAllIn);
 
 		if(sessionID == undefined){
 		  send404(res);
@@ -98,8 +104,9 @@ console.log(path);
   		  break;
 		}
 
-		    //TODO: just more awfulness...
-		    sessionID = sessionID.split('&')[0];
+		//TODO: just more awfulness...
+	    	sessionID = sessionID.split('=')[1];
+		console.log(sessionID);
 
 		if(!(sessionKeys[sessionID])){
 		  console.log('ERROR: sessionKeys[sessionID] is undefined!');
@@ -113,8 +120,7 @@ console.log(path);
 		    tweeterTMP.config.tokenSecret = sessionKeys[sessionID].reqTokenSecret;
 		    	    
 		    tweeterTMP.getAccessToken( function( self, err, data){
-
-			 if(err){
+			if(err){
 			    console.log('<accessToken> Error!!!  ' + err); 
 			    return;
 			}
@@ -148,7 +154,7 @@ console.log(path);
 			  
 			tweeter.setConfig(deepCopy(conf));
 			delete tweeterTMP;  
-		    });					    		    
+		    },oauthAllIn);					    		    
 	    break;
 	    
 	case ('/isAlreadyAuthenticated'):	  	  	   
